@@ -1,0 +1,29 @@
+# Yerel SDK ve ortam yapılandırmaları
+local.properties
+
+# Gradle ve Kotlin derleme önbellekleri
+.gradle/
+.kotlin/
+build/
+app/build/
+captures/
+
+# Derlenmiş APK / AAB paketleri ve imzalama anahtarları
+*.apk
+*.aab
+*.ap_
+*.dex
+*.jks
+*.keystore
+
+# Android Studio / IntelliJ IDEA dosyaları
+.idea/
+*.iml
+.navigation/
+.externalNativeBuild/
+.cxx/
+
+# İşletim sistemi geçici dosyaları
+.DS_Store
+Thumbs.db
+*~
