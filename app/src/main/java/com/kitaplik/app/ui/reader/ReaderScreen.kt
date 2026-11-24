@@ -1,15 +1,20 @@
 package com.kitaplik.app.ui.reader
 
+import android.app.Activity
 import android.graphics.Bitmap
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.calculateCentroidSize
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -22,11 +27,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -38,20 +47,22 @@ import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -60,24 +71,33 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kitaplik.app.data.local.BookFormat
 import com.kitaplik.app.domain.reader.EpubPage
+import com.kitaplik.app.ui.theme.MonoMetaStyle
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import java.util.Locale
 import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -95,14 +115,37 @@ fun ReaderScreen(
     var isVerticalScrollMode by remember { mutableStateOf(false) }
     var epubFontSizeSp by remember { mutableFloatStateOf(18f) }
 
+    val context = LocalContext.current
+    val activity = context as? Activity
+
+    // Okuyucu ekranında alt gezinme çubuğunu her zaman gizli tut;
+    // kontroller gizlendiğinde durum çubuğunu da gizleyerek tam ekran okuma deneyimi sun.
+    LaunchedEffect(showControlsOverlay, activity) {
+        val window = activity?.window ?: return@LaunchedEffect
+        val controller = WindowCompat.getInsetsController(window, window.decorView)
+        controller.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        controller.hide(WindowInsetsCompat.Type.navigationBars())
+        if (showControlsOverlay) {
+            controller.show(WindowInsetsCompat.Type.statusBars())
+        } else {
+            controller.hide(WindowInsetsCompat.Type.statusBars())
+        }
+    }
+
     LaunchedEffect(bookId) {
         viewModel.openBook(bookId)
     }
 
-    // Belge kapatıldığında açık olan sayfayı kesin olarak veritabanına kaydet
-    DisposableEffect(bookId) {
+    // Belge kapatıldığında açık olan sayfayı kesin olarak veritabanına kaydet ve durum çubuğunu geri getir
+    DisposableEffect(bookId, activity) {
         onDispose {
             viewModel.saveProgressOnClose()
+            activity?.window?.let { window ->
+                val controller = WindowCompat.getInsetsController(window, window.decorView)
+                controller.show(WindowInsetsCompat.Type.statusBars())
+                controller.hide(WindowInsetsCompat.Type.navigationBars())
+            }
         }
     }
 
@@ -114,15 +157,21 @@ fun ReaderScreen(
                     .background(MaterialTheme.colorScheme.background),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         }
 
         is ReaderUiState.Error -> {
             Scaffold(
+                containerColor = MaterialTheme.colorScheme.background,
                 topBar = {
                     TopAppBar(
-                        title = { Text("Okuyucu") },
+                        title = {
+                            Text(
+                                text = "Okuyucu",
+                                style = MaterialTheme.typography.titleLarge
+                            )
+                        },
                         navigationIcon = {
                             IconButton(onClick = onNavigateBack) {
                                 Icon(
@@ -130,7 +179,10 @@ fun ReaderScreen(
                                     contentDescription = "Geri"
                                 )
                             }
-                        }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        )
                     )
                 }
             ) { padding ->
@@ -141,11 +193,18 @@ fun ReaderScreen(
                         .padding(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = state.message,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.error
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                    ) {
+                        Text(
+                            text = state.message,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(20.dp)
+                        )
+                    }
                 }
             }
         }
@@ -157,7 +216,6 @@ fun ReaderScreen(
             )
             val coroutineScope = rememberCoroutineScope()
 
-            // Sayfa değiştikçe kaldığı sayfayı otomatik hatırla
             LaunchedEffect(pagerState) {
                 snapshotFlow { pagerState.currentPage }
                     .distinctUntilChanged()
@@ -187,7 +245,6 @@ fun ReaderScreen(
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.background)
             ) {
-                // Hem yatay (sağa/sola) hem dikey (aşağı/yukarı) kaydırma desteği
                 ReaderPagerContent(
                     pagerState = pagerState,
                     isVerticalScrollMode = isVerticalScrollMode,
@@ -201,120 +258,147 @@ fun ReaderScreen(
                     onTapRightEdge = goToNextPage
                 )
 
-                // Üst Bilgi ve Araç Çubuğu
-                AnimatedVisibility(
-                    visible = showControlsOverlay,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                    modifier = Modifier.align(Alignment.TopCenter)
-                ) {
-                    TopAppBar(
-                        title = {
-                            Column {
-                                Text(
-                                    text = state.book.title,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    text = "Sayfa ${currentPage + 1} / ${state.totalPages} • " +
-                                        if (isVerticalScrollMode) "Dikey Kaydırma" else "Yatay Kaydırma",
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            }
-                        },
-                        navigationIcon = {
-                            IconButton(
-                                onClick = {
-                                    viewModel.saveProgressOnClose()
-                                    onNavigateBack()
-                                }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Kitaplığa Dön"
-                                )
-                            }
-                        },
-                        actions = {
-                            // Yatay (Sağa/Sola) <-> Dikey (Aşağı/Yukarı) Sayfa Çevirme Modu Seçimi
-                            IconButton(
-                                onClick = { isVerticalScrollMode = !isVerticalScrollMode }
-                            ) {
-                                Icon(
-                                    imageVector = if (isVerticalScrollMode) {
-                                        Icons.Default.SwapVert
-                                    } else {
-                                        Icons.Default.SwapHoriz
-                                    },
-                                    contentDescription = "Kaydırma Yönünü Değiştir (Yatay / Dikey)"
-                                )
-                            }
-
-                            if (state.book.format == BookFormat.PDF) {
-                                IconButton(
-                                    onClick = { invertPdfColorsForNight = !invertPdfColorsForNight }
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Contrast,
-                                        contentDescription = "PDF Gece Okuma Modu"
-                                    )
-                                }
-                            } else {
-                                IconButton(
-                                    onClick = {
-                                        epubFontSizeSp = when {
-                                            epubFontSizeSp < 18f -> 18f
-                                            epubFontSizeSp < 22f -> 22f
-                                            else -> 15f
-                                        }
-                                    }
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.FormatSize,
-                                        contentDescription = "Yazı Boyutunu Değiştir"
-                                    )
-                                }
-                            }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f)
-                        )
+                // Kontroller gizliyken sayfanın en altında ince ilerleme çizgisi
+                if (!showControlsOverlay && state.totalPages > 1) {
+                    val progress = ((currentPage + 1).toFloat() / state.totalPages.toFloat()).coerceIn(0f, 1f)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(progress)
+                            .height(2.dp)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.55f))
+                            .align(Alignment.BottomStart)
                     )
                 }
 
-                // Alt Sayfa Geçiş Çubuğu (Önceki/Sonraki Butonları + Slider)
+                // Üst Editoryal Araç Çubuğu
                 AnimatedVisibility(
-                    visible = showControlsOverlay && state.totalPages > 1,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                    modifier = Modifier.align(Alignment.BottomCenter)
+                    visible = showControlsOverlay,
+                    enter = slideInVertically(tween(180)) { -it } + fadeIn(tween(180)),
+                    exit = slideOutVertically(tween(140)) { -it } + fadeOut(tween(140)),
+                    modifier = Modifier.align(Alignment.TopCenter)
                 ) {
                     Surface(
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
-                        tonalElevation = 4.dp,
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .statusBarsPadding()
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 8.dp),
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                ReaderOverlayButton(
+                                    onClick = {
+                                        viewModel.saveProgressOnClose()
+                                        onNavigateBack()
+                                    },
+                                    icon = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Kitaplığa Dön"
+                                )
+
+                                Spacer(modifier = Modifier.width(10.dp))
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = state.book.title,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = "Sayfa ${currentPage + 1} / ${state.totalPages} · " +
+                                            if (isVerticalScrollMode) "Dikey" else "Yatay",
+                                        style = MonoMetaStyle.copy(fontSize = 11.5.sp),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.width(8.dp))
+
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    ReaderOverlayButton(
+                                        onClick = { isVerticalScrollMode = !isVerticalScrollMode },
+                                        icon = if (isVerticalScrollMode) {
+                                            Icons.Default.SwapVert
+                                        } else {
+                                            Icons.Default.SwapHoriz
+                                        },
+                                        contentDescription = "Kaydırma Yönünü Değiştir (Yatay / Dikey)",
+                                        isActive = isVerticalScrollMode
+                                    )
+
+                                    if (state.book.format == BookFormat.PDF) {
+                                        ReaderOverlayButton(
+                                            onClick = { invertPdfColorsForNight = !invertPdfColorsForNight },
+                                            icon = Icons.Default.Contrast,
+                                            contentDescription = "PDF Gece Okuma Modu",
+                                            isActive = invertPdfColorsForNight
+                                        )
+                                    } else {
+                                        ReaderOverlayButton(
+                                            onClick = {
+                                                epubFontSizeSp = when {
+                                                    epubFontSizeSp < 18f -> 18f
+                                                    epubFontSizeSp < 22f -> 22f
+                                                    else -> 15f
+                                                }
+                                            },
+                                            icon = Icons.Default.FormatSize,
+                                            contentDescription = "Yazı Boyutunu Değiştir",
+                                            isActive = epubFontSizeSp != 18f
+                                        )
+                                    }
+                                }
+                            }
+                            HorizontalDivider(
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                                thickness = 1.dp
+                            )
+                        }
+                    }
+                }
+
+                // Yüzen Alt Kontrol Paneli (Önceki/Sonraki + Slider)
+                AnimatedVisibility(
+                    visible = showControlsOverlay && state.totalPages > 1,
+                    enter = slideInVertically(tween(180)) { it } + fadeIn(tween(180)),
+                    exit = slideOutVertically(tween(140)) { it } + fadeOut(tween(140)),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(horizontal = 16.dp, vertical = 18.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.97f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        tonalElevation = 2.dp,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 6.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
                                     text = "Sayfa ${currentPage + 1} / ${state.totalPages}",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.SemiBold
+                                    style = MonoMetaStyle,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                                 val percent = ((currentPage + 1) * 100) / state.totalPages
                                 Text(
                                     text = "%$percent tamamlandı",
-                                    style = MaterialTheme.typography.labelMedium,
+                                    style = MonoMetaStyle,
                                     color = MaterialTheme.colorScheme.primary
                                 )
                             }
@@ -342,6 +426,11 @@ fun ReaderScreen(
                                         }
                                     },
                                     valueRange = 0f..(state.totalPages - 1).coerceAtLeast(1).toFloat(),
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = MaterialTheme.colorScheme.primary,
+                                        activeTrackColor = MaterialTheme.colorScheme.primary,
+                                        inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                                    ),
                                     modifier = Modifier.weight(1f)
                                 )
 
@@ -359,6 +448,48 @@ fun ReaderScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ReaderOverlayButton(
+    onClick: () -> Unit,
+    icon: ImageVector,
+    contentDescription: String,
+    isActive: Boolean = false
+) {
+    Surface(
+        shape = RoundedCornerShape(9.dp),
+        color = if (isActive) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.background
+        },
+        contentColor = if (isActive) {
+            MaterialTheme.colorScheme.onPrimaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurface
+        },
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (isActive) {
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+            } else {
+                MaterialTheme.colorScheme.outlineVariant
+            }
+        ),
+        modifier = Modifier
+            .size(38.dp)
+            .clip(RoundedCornerShape(9.dp))
+            .clickable(onClick = onClick)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }
@@ -464,7 +595,6 @@ private fun PdfPageView(
         modifier = Modifier
             .fillMaxSize()
             .onSizeChanged { containerSize = it }
-            // 1. Tek dokunuş (kenarlardan sayfa çevirme, ortadan bar aç/kapa) ve Çift dokunuş (Zoom)
             .pointerInput(pageIndex) {
                 detectTapGestures(
                     onDoubleTap = {
@@ -486,8 +616,6 @@ private fun PdfPageView(
                     }
                 )
             }
-            // 2. İki parmakla yakınlaştırma (Pinch-to-Zoom) ve yalnızca yakınlaştırılmışken pan:
-            // scale == 1f ve tek parmak varken olayları TÜKETMEZ, böylece Pager sayfaları rahatça çevirir.
             .pointerInput(pageIndex) {
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
@@ -496,7 +624,6 @@ private fun PdfPageView(
                         val pointerCount = event.changes.count { it.pressed }
 
                         if (pointerCount >= 2) {
-                            // İki parmakla pinch-to-zoom
                             val zoomChange = event.calculateZoom()
                             val panChange = event.calculatePan()
                             val newScale = (scale * zoomChange).coerceIn(1f, 4f)
@@ -516,7 +643,6 @@ private fun PdfPageView(
                                 }
                             }
                         } else if (pointerCount == 1 && scale > 1.02f) {
-                            // Sayfa yakınlaştırılmış durumda: tek parmakla sayfa içinde gezin
                             val panChange = event.calculatePan()
                             val maxX = (containerSize.width * (scale - 1f)) / 2f
                             val maxY = (containerSize.height * (scale - 1f)) / 2f
@@ -527,8 +653,6 @@ private fun PdfPageView(
                             offsetX = nextX.coerceIn(-maxX, maxX)
                             offsetY = nextY.coerceIn(-maxY, maxY)
 
-                            // Sadece yakınlaştırılmış sayfa sınırları içindeyken olayı tüket;
-                            // kenara dayanıldığında Pager'ın sonraki sayfaya geçmesine izin ver.
                             if (withinHorizontalBounds && (abs(panChange.x) > 0.5f || abs(panChange.y) > 0.5f)) {
                                 event.changes.forEach { change ->
                                     if (change.positionChanged()) {
@@ -537,8 +661,6 @@ private fun PdfPageView(
                                 }
                             }
                         }
-                        // Not: pointerCount == 1 ve scale == 1f iken HİÇBİR olayı consume etmiyoruz!
-                        // Böylece HorizontalPager ve VerticalPager kaydırma hareketini doğrudan alır.
                     } while (event.changes.any { it.pressed })
                 }
             },
@@ -561,7 +683,7 @@ private fun PdfPageView(
                     )
             )
         } else {
-            CircularProgressIndicator()
+            CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
         }
     }
 }
@@ -592,19 +714,27 @@ private fun EpubPageView(
                 )
             }
             .verticalScroll(scrollState)
-            .padding(horizontal = 24.dp, vertical = 72.dp)
+            .padding(horizontal = 24.dp, vertical = 84.dp)
     ) {
         Text(
-            text = epubPage.chapterTitle,
-            style = MaterialTheme.typography.labelLarge,
+            text = epubPage.chapterTitle.uppercase(Locale.forLanguageTag("tr-TR")),
+            style = MonoMetaStyle,
             color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold
+            letterSpacing = 0.9.sp
         )
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
+        Box(
+            modifier = Modifier
+                .width(36.dp)
+                .height(1.5.dp)
+                .background(MaterialTheme.colorScheme.primary)
+        )
+        Spacer(modifier = Modifier.height(18.dp))
         Text(
             text = epubPage.content,
+            fontFamily = FontFamily.Serif,
             fontSize = fontSizeSp.sp,
-            lineHeight = (fontSizeSp * 1.55f).sp,
+            lineHeight = (fontSizeSp * 1.65f).sp,
             color = MaterialTheme.colorScheme.onBackground
         )
     }

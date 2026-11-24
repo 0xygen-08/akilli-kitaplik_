@@ -3,6 +3,19 @@
 **Geliştirici / Author:** Adem Uludağ  
 **Lisans / License:** [PolyForm Noncommercial License 1.0.0](LICENSE) *(Kişisel ve eğitim amaçlı kullanıma/özelleştirmeye açık, ticari kullanıma kapalı)*
 
+---
+
+## 📥 APK İndir
+
+- **Doğrudan Son Sürüm APK İndir:** [akilli-kitaplik-latest.apk](https://github.com/0xygen-08/akilli-kitaplik_/releases/latest/download/akilli-kitaplik-latest.apk)
+- **Tüm Sürümler (Releases):** [GitHub Releases](https://github.com/0xygen-08/akilli-kitaplik_/releases)
+
+### Bu Çatalda (Fork) Yapılan Güncellemeler
+- **Editoryal Tasarım Yenilemesi:** Sıcak kağıt / koyu okuma odası renk paleti, serif başlık tipografisi, cilt sırtlı minyatür kitap kartları, `Kaldığın Yerden Devam Et` öne çıkan okuma kartı ve dokunsal mikro-etkileşimler.
+- **Tam Ekran Alt Sistem Çubuğu Gizleme:** Uygulama genelinde Android alt gezinme çubuğu (geri / ana ekran / son uygulamalar) kenardan kaydırmayla geçici açılacak şekilde gizlendi; okuyucu modunda kontroller kapatıldığında durum çubuğu da gizlenerek tam ekran okuma sağlandı.
+
+---
+
 **Akıllı Kitaplık**, Android cihazınızdaki tüm depolama alanını (`Documents`, `Download`, `LocalSend`, `Telegram`, `WhatsApp` vb.) tarayarak PDF ve EPUB belgelerini sizin belirlediğiniz kriterlere göre otomatik sınıflandıran, birbirine karışmayan ayrık listelerde gecikmesiz olarak sunan ve yerleşik okuyucusuyla doğrudan açan hafif bir Android uygulamasıdır.
 
 ---
