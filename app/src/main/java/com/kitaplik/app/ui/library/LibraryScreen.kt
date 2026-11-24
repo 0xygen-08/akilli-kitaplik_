@@ -10,21 +10,14 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,10 +26,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -45,7 +38,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -69,6 +61,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -90,55 +83,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kitaplik.app.data.local.BookEntity
 import com.kitaplik.app.data.local.BookFormat
 import com.kitaplik.app.data.local.BookListEntity
 import com.kitaplik.app.data.local.ThemeMode
-import com.kitaplik.app.ui.theme.MonoMetaStyle
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-
-private val PressEasing = CubicBezierEasing(0.2f, 0.8f, 0.2f, 1f)
-
-private fun Modifier.tactileClickable(
-    enabled: Boolean = true,
-    pressedScale: Float = 0.985f,
-    onClick: () -> Unit
-): Modifier = composed {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed && enabled) pressedScale else 1f,
-        animationSpec = tween(durationMillis = 90, easing = PressEasing),
-        label = "tactileScale"
-    )
-    this
-        .graphicsLayer {
-            scaleX = scale
-            scaleY = scale
-        }
-        .clickable(
-            interactionSource = interactionSource,
-            indication = LocalIndication.current,
-            enabled = enabled,
-            onClick = onClick
-        )
-}
 
 @Composable
 fun LibraryScreen(
@@ -194,7 +153,7 @@ fun LibraryScreen(
         }
     }
 
-    val featuredBook = remember(books) {
+    val continueReadingBook = remember(books) {
         books.filter { it.lastReadPage > 0 }
             .maxByOrNull { it.lastReadTimestamp }
     }
@@ -218,51 +177,40 @@ fun LibraryScreen(
         ),
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
-            EditorialTopMasthead(
+            LibraryHeader(
                 listName = selectedList.name,
                 bookCount = books.size,
-                totalListsCount = bookLists.size,
-                weeklyAutoScanEnabled = preferences.weeklyAutoScanEnabled,
                 isScanning = isScanning,
                 themeMode = preferences.themeMode,
-                onEditListClick = { editingList = selectedList },
                 onScanClick = runManualScan,
+                onEditListClick = { editingList = selectedList },
                 onToggleThemeClick = { viewModel.toggleThemeMode() }
             )
         },
         floatingActionButton = {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.primary,
+            ExtendedFloatingActionButton(
+                onClick = {
+                    manualAddLauncher.launch(
+                        arrayOf("application/pdf", "application/epub+zip")
+                    )
+                },
+                shape = RoundedCornerShape(16.dp),
+                containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
-                shadowElevation = 2.dp,
-                modifier = Modifier
-                    .padding(bottom = 12.dp)
-                    .height(48.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .tactileClickable {
-                        manualAddLauncher.launch(
-                            arrayOf("application/pdf", "application/epub+zip")
-                        )
-                    }
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 18.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                modifier = Modifier.padding(bottom = 12.dp),
+                icon = {
                     Icon(
                         imageVector = Icons.Default.Add,
-                        contentDescription = "Elle Ekle",
-                        modifier = Modifier.size(18.dp)
+                        contentDescription = null
                     )
+                },
+                text = {
                     Text(
                         text = "Elle Ekle",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.labelLarge
                     )
                 }
-            }
+            )
         }
     ) { innerPadding ->
         Column(
@@ -280,7 +228,6 @@ fun LibraryScreen(
             )
 
             ControlBar(
-                activeListName = selectedList.name,
                 weeklyScanEnabled = preferences.weeklyAutoScanEnabled,
                 lastScanTimestamp = preferences.lastScanTimestamp,
                 bookCount = books.size,
@@ -318,43 +265,29 @@ fun LibraryScreen(
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(
-                        start = 20.dp,
-                        end = 20.dp,
+                        start = 16.dp,
+                        end = 16.dp,
                         top = 12.dp,
                         bottom = 96.dp
                     ),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    if (featuredBook != null) {
-                        item(key = "featured_continue_${featuredBook.id}") {
-                            FeaturedContinueCard(
-                                book = featuredBook,
-                                onClick = { onBookClick(featuredBook) }
+                    if (continueReadingBook != null) {
+                        item(key = "continue_reading_${continueReadingBook.id}") {
+                            ContinueReadingCard(
+                                book = continueReadingBook,
+                                onClick = { onBookClick(continueReadingBook) }
                             )
-                            Spacer(modifier = Modifier.height(6.dp))
                         }
                     }
 
-                    item(key = "shelf_section_header") {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 4.dp, bottom = 2.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "RAF · ${books.size} BELGE",
-                                style = MonoMetaStyle,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                letterSpacing = 0.8.sp
-                            )
-                            Text(
-                                text = selectedList.name.uppercase(Locale.forLanguageTag("tr-TR")),
-                                style = MonoMetaStyle,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
+                    item(key = "shelf_label") {
+                        Text(
+                            text = "Tüm belgeler (${books.size})",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
                     }
 
                     items(
@@ -425,136 +358,98 @@ fun LibraryScreen(
 }
 
 @Composable
-private fun EditorialTopMasthead(
+private fun LibraryHeader(
     listName: String,
     bookCount: Int,
-    totalListsCount: Int,
-    weeklyAutoScanEnabled: Boolean,
     isScanning: Boolean,
     themeMode: ThemeMode,
-    onEditListClick: () -> Unit,
     onScanClick: () -> Unit,
+    onEditListClick: () -> Unit,
     onToggleThemeClick: () -> Unit
 ) {
-    Surface(
-        color = MaterialTheme.colorScheme.background,
-        modifier = Modifier.fillMaxWidth()
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.background)
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = listName,
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "$bookCount belge",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 14.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = listName,
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(3.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        if (weeklyAutoScanEnabled) {
-                            Box(
-                                modifier = Modifier
-                                    .size(7.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.secondary)
-                            )
-                        }
-                        Text(
-                            text = "$bookCount belge · $totalListsCount liste",
-                            style = MonoMetaStyle,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                IconButton(
+                    onClick = onScanClick,
+                    enabled = !isScanning,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    if (isScanning) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Bu Listenin Kriterleriyle Şimdi Tara",
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                IconButton(
+                    onClick = onEditListClick,
+                    modifier = Modifier.size(48.dp)
                 ) {
-                    MastheadIconButton(
-                        onClick = onScanClick,
-                        enabled = !isScanning,
-                        contentDescription = "Bu Listenin Kriterleriyle Şimdi Tara"
-                    ) {
-                        if (isScanning) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.Refresh,
-                                contentDescription = "Bu Listenin Kriterleriyle Şimdi Tara",
-                                modifier = Modifier.size(19.dp)
-                            )
-                        }
-                    }
-
-                    MastheadIconButton(
-                        onClick = onEditListClick,
+                    Icon(
+                        imageVector = Icons.Default.Tune,
                         contentDescription = "Liste Kriterlerini ve Adını Düzenle",
-                        icon = Icons.Default.Tune
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
+                }
 
-                    val themeIcon = when (themeMode) {
-                        ThemeMode.DARK -> Icons.Default.DarkMode
-                        ThemeMode.LIGHT -> Icons.Default.LightMode
-                        ThemeMode.SYSTEM -> Icons.Default.BrightnessAuto
-                    }
-                    MastheadIconButton(
-                        onClick = onToggleThemeClick,
+                val themeIcon = when (themeMode) {
+                    ThemeMode.DARK -> Icons.Default.DarkMode
+                    ThemeMode.LIGHT -> Icons.Default.LightMode
+                    ThemeMode.SYSTEM -> Icons.Default.BrightnessAuto
+                }
+                IconButton(
+                    onClick = onToggleThemeClick,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = themeIcon,
                         contentDescription = "Tema Değiştir (Karanlık / Aydınlık)",
-                        icon = themeIcon
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
         }
-    }
-}
-
-@Composable
-private fun MastheadIconButton(
-    onClick: () -> Unit,
-    contentDescription: String,
-    enabled: Boolean = true,
-    icon: ImageVector? = null,
-    content: (@Composable () -> Unit)? = null
-) {
-    Surface(
-        shape = RoundedCornerShape(10.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier
-            .size(40.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .tactileClickable(enabled = enabled, pressedScale = 0.96f, onClick = onClick)
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            if (content != null) {
-                content()
-            } else if (icon != null) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = contentDescription,
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.size(19.dp)
-                )
-            }
-        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
     }
 }
 
@@ -571,103 +466,82 @@ private fun ListsSelectorBar(
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         for (list in lists) {
             val isSelected = list.id == selectedListId
             val count = listBookCounts[list.id] ?: 0
-            val containerColor = if (isSelected) {
-                MaterialTheme.colorScheme.onBackground
-            } else {
-                MaterialTheme.colorScheme.surface
-            }
-            val contentColor = if (isSelected) {
-                MaterialTheme.colorScheme.background
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            }
-            val borderColor = if (isSelected) {
-                MaterialTheme.colorScheme.onBackground
-            } else {
-                MaterialTheme.colorScheme.outlineVariant
-            }
-
             Surface(
-                shape = RoundedCornerShape(9.dp),
-                color = containerColor,
-                contentColor = contentColor,
-                border = BorderStroke(1.dp, borderColor),
-                modifier = Modifier
-                    .height(36.dp)
-                    .clip(RoundedCornerShape(9.dp))
-                    .tactileClickable { onSelectList(list.id) }
+                onClick = { onSelectList(list.id) },
+                shape = RoundedCornerShape(12.dp),
+                color = if (isSelected) {
+                    MaterialTheme.colorScheme.primaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surface
+                },
+                contentColor = if (isSelected) {
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
+                border = BorderStroke(
+                    width = 1.dp,
+                    color = if (isSelected) {
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
+                    } else {
+                        MaterialTheme.colorScheme.outlineVariant
+                    }
+                ),
+                modifier = Modifier.heightIn(min = 44.dp)
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 12.dp),
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = list.name,
+                        text = "${list.name} · $count",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
                         maxLines = 1
                     )
-                    Text(
-                        text = "$count",
-                        style = MonoMetaStyle,
-                        color = if (isSelected) {
-                            contentColor.copy(alpha = 0.78f)
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        }
-                    )
                     if (isSelected) {
-                        Box(
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Listeyi İsimlendir veya Kriterlerini Düzenle",
                             modifier = Modifier
-                                .size(22.dp)
-                                .clip(CircleShape)
-                                .clickable { onEditSelectedList() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Edit,
-                                contentDescription = "Listeyi İsimlendir veya Kriterlerini Düzenle",
-                                modifier = Modifier.size(13.dp)
-                            )
-                        }
+                                .size(18.dp)
+                                .clickable { onEditSelectedList() }
+                        )
                     }
                 }
             }
         }
 
         Surface(
-            shape = RoundedCornerShape(9.dp),
+            onClick = onCreateNewList,
+            shape = RoundedCornerShape(12.dp),
             color = MaterialTheme.colorScheme.surface,
             contentColor = MaterialTheme.colorScheme.onSurface,
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            modifier = Modifier
-                .height(36.dp)
-                .clip(RoundedCornerShape(9.dp))
-                .tactileClickable { onCreateNewList() }
+            modifier = Modifier.heightIn(min = 44.dp)
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 12.dp),
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(15.dp)
+                    modifier = Modifier.size(18.dp)
                 )
                 Text(
                     text = "Yeni Liste",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.SemiBold
+                    style = MaterialTheme.typography.labelLarge
                 )
             }
         }
@@ -676,7 +550,6 @@ private fun ListsSelectorBar(
 
 @Composable
 private fun ControlBar(
-    activeListName: String,
     weeklyScanEnabled: Boolean,
     lastScanTimestamp: Long,
     bookCount: Int,
@@ -687,76 +560,75 @@ private fun ControlBar(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = 16.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                shape = RoundedCornerShape(8.dp),
+                onClick = { onToggleWeeklyScan(!weeklyScanEnabled) },
+                shape = RoundedCornerShape(10.dp),
                 color = if (weeklyScanEnabled) {
-                    MaterialTheme.colorScheme.secondaryContainer
+                    MaterialTheme.colorScheme.primaryContainer
                 } else {
                     MaterialTheme.colorScheme.surface
                 },
                 contentColor = if (weeklyScanEnabled) {
-                    MaterialTheme.colorScheme.onSecondaryContainer
+                    MaterialTheme.colorScheme.onPrimaryContainer
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 },
                 border = BorderStroke(
                     width = 1.dp,
                     color = if (weeklyScanEnabled) {
-                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.45f)
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
                     } else {
                         MaterialTheme.colorScheme.outlineVariant
                     }
                 ),
-                modifier = Modifier
-                    .height(34.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .tactileClickable { onToggleWeeklyScan(!weeklyScanEnabled) }
+                modifier = Modifier.heightIn(min = 44.dp)
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 10.dp),
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Schedule,
                         contentDescription = null,
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                     Text(
-                        text = if (weeklyScanEnabled) "Haftalık Tarama: Açık" else "Haftalık Tarama: Kapalı",
-                        style = MaterialTheme.typography.labelMedium
+                        text = if (weeklyScanEnabled) "Haftalık tarama: Açık" else "Haftalık tarama: Kapalı",
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1
                     )
                 }
             }
 
             if (bookCount > 0) {
-                Spacer(modifier = Modifier.width(8.dp))
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
+                    onClick = onGatherBooksClick,
+                    enabled = !isOrganizing,
+                    shape = RoundedCornerShape(10.dp),
                     color = MaterialTheme.colorScheme.surface,
                     contentColor = MaterialTheme.colorScheme.onSurface,
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     modifier = Modifier
-                        .height(34.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .tactileClickable(enabled = !isOrganizing, onClick = onGatherBooksClick)
+                        .weight(1f)
+                        .heightIn(min = 44.dp)
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 10.dp),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        horizontalArrangement = Arrangement.Center
                     ) {
                         if (isOrganizing) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(13.dp),
-                                strokeWidth = 1.8.dp,
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
                                 color = MaterialTheme.colorScheme.primary
                             )
                         } else {
@@ -764,11 +636,12 @@ private fun ControlBar(
                                 imageVector = Icons.AutoMirrored.Filled.DriveFileMove,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(15.dp)
+                                modifier = Modifier.size(16.dp)
                             )
                         }
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "'$activeListName' Klasöründe Toparla",
+                            text = "Klasörde toparla",
                             style = MaterialTheme.typography.labelMedium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -780,13 +653,13 @@ private fun ControlBar(
 
         if (lastScanTimestamp > 0L) {
             val formatted = remember(lastScanTimestamp) {
-                SimpleDateFormat("dd MMM yyyy · HH:mm", Locale.forLanguageTag("tr-TR"))
+                SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.forLanguageTag("tr-TR"))
                     .format(Date(lastScanTimestamp))
             }
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "Son tarama: $formatted · Belgeler listeler arası çakışmaz",
-                style = MonoMetaStyle.copy(fontSize = 11.sp),
+                text = "Son tarama: $formatted",
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -799,7 +672,7 @@ private fun ControlBar(
 }
 
 @Composable
-private fun FeaturedContinueCard(
+private fun ContinueReadingCard(
     book: BookEntity,
     onClick: () -> Unit
 ) {
@@ -809,40 +682,38 @@ private fun FeaturedContinueCard(
     } else 0f
 
     Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.inverseSurface,
-        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.28f)),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .tactileClickable(onClick = onClick)
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(18.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "OKUMAYA DEVAM ET",
-                    style = MonoMetaStyle,
+                    text = "Okumaya devam et",
+                    style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
-                    letterSpacing = 1.1.sp
+                    fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = "%${book.progressPercent} · ${book.format.name}",
-                    style = MonoMetaStyle,
-                    color = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.78f)
+                    text = "%${book.progressPercent}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             Text(
                 text = book.title,
                 style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.inverseOnSurface,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
@@ -853,22 +724,22 @@ private fun FeaturedContinueCard(
                 Text(
                     text = meta,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.7f),
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             LinearProgressIndicator(
                 progress = { progress },
                 color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.16f),
+                trackColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.65f),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(3.dp)
-                    .clip(RoundedCornerShape(2.dp))
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp))
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -880,18 +751,17 @@ private fun FeaturedContinueCard(
             ) {
                 Text(
                     text = "Sayfa $currentPageDisplay / ${book.totalPages}",
-                    style = MonoMetaStyle,
-                    color = MaterialTheme.colorScheme.inverseOnSurface.copy(alpha = 0.78f)
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
                 )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        text = "Kaldığın Yerden Aç",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.inverseOnSurface,
-                        fontWeight = FontWeight.SemiBold
+                        text = "Devam et",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
@@ -912,20 +782,15 @@ private fun BookListItem(
     onSingleClickRemove: () -> Unit
 ) {
     val isPdf = book.format == BookFormat.PDF
-    val coverBg = if (isPdf) {
+    val badgeBg = if (isPdf) {
         MaterialTheme.colorScheme.primaryContainer
     } else {
         MaterialTheme.colorScheme.secondaryContainer
     }
-    val coverInk = if (isPdf) {
+    val badgeInk = if (isPdf) {
         MaterialTheme.colorScheme.onPrimaryContainer
     } else {
         MaterialTheme.colorScheme.onSecondaryContainer
-    }
-    val spineColor = if (isPdf) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.secondary
     }
 
     val currentPageDisplay = (book.lastReadPage + 1).coerceAtMost(book.totalPages.coerceAtLeast(1))
@@ -935,40 +800,28 @@ private fun BookListItem(
     } else 0f
 
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .tactileClickable(onClick = onClick)
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Cilt sırtlı minyatür kitap kapağı
-            Box(
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = badgeBg,
+                contentColor = badgeInk,
                 modifier = Modifier
                     .width(44.dp)
-                    .height(60.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(coverBg)
-                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(6.dp))
+                    .height(56.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .width(4.dp)
-                        .background(spineColor)
-                        .align(Alignment.CenterStart)
-                )
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(start = 4.dp),
+                    modifier = Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
@@ -979,28 +832,18 @@ private fun BookListItem(
                             Icons.Default.AutoStories
                         },
                         contentDescription = null,
-                        tint = coverInk,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(20.dp)
                     )
-                    Spacer(modifier = Modifier.height(3.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = book.format.name,
-                        style = MonoMetaStyle.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold),
-                        color = coverInk
-                    )
-                }
-                if (hasStarted) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(progress)
-                            .height(2.5.dp)
-                            .background(spineColor)
-                            .align(Alignment.BottomStart)
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(14.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -1041,7 +884,7 @@ private fun BookListItem(
                         } else {
                             "${book.totalPages} sayfa"
                         },
-                        style = MonoMetaStyle,
+                        style = MaterialTheme.typography.labelMedium,
                         color = if (hasStarted) {
                             MaterialTheme.colorScheme.primary
                         } else {
@@ -1056,24 +899,23 @@ private fun BookListItem(
                             trackColor = MaterialTheme.colorScheme.surfaceVariant,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(3.dp)
+                                .height(4.dp)
                                 .clip(RoundedCornerShape(2.dp))
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(4.dp))
 
             IconButton(
                 onClick = onSingleClickRemove,
-                modifier = Modifier.size(36.dp)
+                modifier = Modifier.size(48.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = "Tek Tıkla Listeden Kaldır",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
-                    modifier = Modifier.size(18.dp)
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -1133,11 +975,11 @@ private fun ListConfigDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "HIZLI ŞABLON DOLDUR",
-                    style = MonoMetaStyle,
+                    text = "Hızlı şablon doldur",
+                    style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary
                 )
                 Row(
@@ -1243,8 +1085,10 @@ private fun ListConfigDialog(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(min = 48.dp)
                         .clip(RoundedCornerShape(8.dp))
                         .clickable { matchBoth = !matchBoth }
+                        .padding(vertical = 4.dp)
                 ) {
                     Checkbox(
                         checked = matchBoth,
@@ -1260,14 +1104,16 @@ private fun ListConfigDialog(
                 if (canDelete) {
                     TextButton(
                         onClick = onDelete,
-                        modifier = Modifier.align(Alignment.Start)
+                        modifier = Modifier
+                            .align(Alignment.Start)
+                            .heightIn(min = 48.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.DeleteOutline,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.error
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "Bu Listeyi Sil",
                             color = MaterialTheme.colorScheme.error
@@ -1283,6 +1129,7 @@ private fun ListConfigDialog(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary
                 ),
+                modifier = Modifier.heightIn(min = 48.dp),
                 onClick = {
                     val minP = minPagesText.toIntOrNull()?.coerceAtLeast(1) ?: 1
                     val maxP = maxPagesText.toIntOrNull()?.coerceAtLeast(0) ?: 0
@@ -1303,11 +1150,15 @@ private fun ListConfigDialog(
             }
         },
         dismissButton = {
-            Row {
-                TextButton(onClick = onDismiss) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.heightIn(min = 48.dp)
+                ) {
                     Text("İptal", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 TextButton(
+                    modifier = Modifier.heightIn(min = 48.dp),
                     onClick = {
                         val minP = minPagesText.toIntOrNull()?.coerceAtLeast(1) ?: 1
                         val maxP = maxPagesText.toIntOrNull()?.coerceAtLeast(0) ?: 0
@@ -1337,19 +1188,22 @@ private fun TemplateChip(
     onClick: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(8.dp),
+        onClick = onClick,
+        shape = RoundedCornerShape(10.dp),
         color = MaterialTheme.colorScheme.surfaceVariant,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .tactileClickable(onClick = onClick)
+        modifier = Modifier.heightIn(min = 44.dp)
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
-        )
+        Box(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
     }
 }
 
@@ -1359,13 +1213,13 @@ private fun PermissionBanner(
     onRefreshPermissionState: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.primaryContainer,
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)),
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 10.dp)
+            .padding(horizontal = 16.dp, vertical = 10.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
@@ -1373,28 +1227,30 @@ private fun PermissionBanner(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onPrimaryContainer
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "Cihazdaki tüm klasörlerde bulunan PDF/EPUB belgelerini özel kriterlerinize göre tarayabilmek ve her listeyi kendi klasöründe toparlayabilmek için dosya erişim izni verin.",
+                text = "Cihazdaki tüm klasörlerde bulunan PDF ve EPUB belgelerini özel kriterlerinize göre tarayabilmek için dosya erişim izni verin.",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
+                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.88f)
             )
             Spacer(modifier = Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = onGrantClick,
-                    shape = RoundedCornerShape(9.dp),
+                    shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary
-                    )
+                    ),
+                    modifier = Modifier.heightIn(min = 48.dp)
                 ) {
                     Text("İzin Ver")
                 }
                 OutlinedButton(
                     onClick = onRefreshPermissionState,
-                    shape = RoundedCornerShape(9.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.35f))
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.35f)),
+                    modifier = Modifier.heightIn(min = 48.dp)
                 ) {
                     Text(
                         text = "İzni Kontrol Et",
@@ -1416,7 +1272,7 @@ private fun EmptyLibraryView(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp, vertical = 32.dp),
+            .padding(horizontal = 24.dp, vertical = 24.dp),
         contentAlignment = Alignment.Center
     ) {
         Surface(
@@ -1430,26 +1286,26 @@ private fun EmptyLibraryView(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(56.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.MenuBook,
-                        contentDescription = null,
-                        modifier = Modifier.size(28.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.MenuBook,
+                            contentDescription = null,
+                            modifier = Modifier.size(28.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
 
                 Text(
                     text = if (isScanning) {
-                        "\"$listName\" İçin Cihaz Taranıyor..."
+                        "\"$listName\" için cihaz taranıyor..."
                     } else {
-                        "\"$listName\" Rafı Henüz Boş"
+                        "\"$listName\" listesi henüz boş"
                     },
                     style = MaterialTheme.typography.titleLarge,
                     textAlign = TextAlign.Center,
@@ -1457,7 +1313,7 @@ private fun EmptyLibraryView(
                 )
 
                 Text(
-                    text = "Bu listenin kendine özel kriterlerine göre cihazdaki tüm klasörleri tarayabilir veya kriterleri düzenleyebilirsiniz. Başka bir listede yer alan belgeler bu listeye tekrar eklenmez.",
+                    text = "Bu listenin kriterlerine göre cihazdaki klasörleri tarayabilir veya kriterleri düzenleyebilirsiniz. Başka bir listedeki belgeler bu listeye tekrar eklenmez.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -1468,14 +1324,14 @@ private fun EmptyLibraryView(
                 Button(
                     onClick = onManualScanClick,
                     enabled = !isScanning,
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(46.dp)
+                        .heightIn(min = 48.dp)
                 ) {
                     if (isScanning) {
                         CircularProgressIndicator(
@@ -1484,7 +1340,11 @@ private fun EmptyLibraryView(
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                     } else {
-                        Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("\"$listName\" İçin Dosyaları Tara")
@@ -1492,13 +1352,17 @@ private fun EmptyLibraryView(
 
                 OutlinedButton(
                     onClick = onEditCriteriaClick,
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp)
+                        .heightIn(min = 48.dp)
                 ) {
-                    Icon(imageVector = Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(17.dp))
+                    Icon(
+                        imageVector = Icons.Default.Tune,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Liste Kriterlerini Düzenle", color = MaterialTheme.colorScheme.onSurface)
                 }

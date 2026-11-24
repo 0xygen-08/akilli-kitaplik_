@@ -28,10 +28,8 @@ private val DarkColorScheme = darkColorScheme(
     onSurface = DarkInk,
     surfaceVariant = DarkSurfaceVariant,
     onSurfaceVariant = DarkMutedInk,
-    outline = DarkHairline,
-    outlineVariant = DarkHairline,
-    inverseSurface = DarkInverseSurface,
-    inverseOnSurface = DarkInverseOnSurface,
+    outline = DarkBorder,
+    outlineVariant = DarkBorder,
     error = DarkError
 )
 
@@ -50,10 +48,8 @@ private val LightColorScheme = lightColorScheme(
     onSurface = LightInk,
     surfaceVariant = LightSurfaceVariant,
     onSurfaceVariant = LightMutedInk,
-    outline = LightHairline,
-    outlineVariant = LightHairline,
-    inverseSurface = LightInverseSurface,
-    inverseOnSurface = LightInverseOnSurface,
+    outline = LightBorder,
+    outlineVariant = LightBorder,
     error = LightError
 )
 

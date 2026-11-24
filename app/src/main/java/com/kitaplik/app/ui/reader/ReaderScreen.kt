@@ -12,7 +12,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
@@ -30,6 +29,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.VerticalPager
@@ -57,12 +57,12 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -71,7 +71,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.asImageBitmap
@@ -83,7 +82,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -94,10 +92,8 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kitaplik.app.data.local.BookFormat
 import com.kitaplik.app.domain.reader.EpubPage
-import com.kitaplik.app.ui.theme.MonoMetaStyle
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
-import java.util.Locale
 import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -173,7 +169,10 @@ fun ReaderScreen(
                             )
                         },
                         navigationIcon = {
-                            IconButton(onClick = onNavigateBack) {
+                            IconButton(
+                                onClick = onNavigateBack,
+                                modifier = Modifier.size(48.dp)
+                            ) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                     contentDescription = "Geri"
@@ -265,12 +264,12 @@ fun ReaderScreen(
                         modifier = Modifier
                             .fillMaxWidth(progress)
                             .height(2.dp)
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.55f))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
                             .align(Alignment.BottomStart)
                     )
                 }
 
-                // Üst Editoryal Araç Çubuğu
+                // Üst Sakin Araç Çubuğu
                 AnimatedVisibility(
                     visible = showControlsOverlay,
                     enter = slideInVertically(tween(180)) { -it } + fadeIn(tween(180)),
@@ -289,7 +288,7 @@ fun ReaderScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 ReaderOverlayButton(
@@ -301,7 +300,7 @@ fun ReaderScreen(
                                     contentDescription = "Kitaplığa Dön"
                                 )
 
-                                Spacer(modifier = Modifier.width(10.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
 
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
@@ -314,14 +313,14 @@ fun ReaderScreen(
                                     Text(
                                         text = "Sayfa ${currentPage + 1} / ${state.totalPages} · " +
                                             if (isVerticalScrollMode) "Dikey" else "Yatay",
-                                        style = MonoMetaStyle.copy(fontSize = 11.5.sp),
+                                        style = MaterialTheme.typography.labelMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
 
                                 Spacer(modifier = Modifier.width(8.dp))
 
-                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     ReaderOverlayButton(
                                         onClick = { isVerticalScrollMode = !isVerticalScrollMode },
                                         icon = if (isVerticalScrollMode) {
@@ -371,17 +370,17 @@ fun ReaderScreen(
                     exit = slideOutVertically(tween(140)) { it } + fadeOut(tween(140)),
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(horizontal = 16.dp, vertical = 18.dp)
+                        .padding(16.dp)
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(16.dp),
                         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.97f),
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                         tonalElevation = 2.dp,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)
                         ) {
                             Row(
                                 modifier = Modifier
@@ -392,13 +391,13 @@ fun ReaderScreen(
                             ) {
                                 Text(
                                     text = "Sayfa ${currentPage + 1} / ${state.totalPages}",
-                                    style = MonoMetaStyle,
+                                    style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 val percent = ((currentPage + 1) * 100) / state.totalPages
                                 Text(
-                                    text = "%$percent tamamlandı",
-                                    style = MonoMetaStyle,
+                                    text = "%$percent",
+                                    style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.primary
                                 )
                             }
@@ -409,7 +408,8 @@ fun ReaderScreen(
                             ) {
                                 IconButton(
                                     onClick = goToPreviousPage,
-                                    enabled = currentPage > 0
+                                    enabled = currentPage > 0,
+                                    modifier = Modifier.size(48.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
@@ -436,7 +436,8 @@ fun ReaderScreen(
 
                                 IconButton(
                                     onClick = goToNextPage,
-                                    enabled = currentPage < state.totalPages - 1
+                                    enabled = currentPage < state.totalPages - 1,
+                                    modifier = Modifier.size(48.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
@@ -460,7 +461,8 @@ private fun ReaderOverlayButton(
     isActive: Boolean = false
 ) {
     Surface(
-        shape = RoundedCornerShape(9.dp),
+        onClick = onClick,
+        shape = RoundedCornerShape(10.dp),
         color = if (isActive) {
             MaterialTheme.colorScheme.primaryContainer
         } else {
@@ -474,21 +476,18 @@ private fun ReaderOverlayButton(
         border = BorderStroke(
             width = 1.dp,
             color = if (isActive) {
-                MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
             } else {
                 MaterialTheme.colorScheme.outlineVariant
             }
         ),
-        modifier = Modifier
-            .size(38.dp)
-            .clip(RoundedCornerShape(9.dp))
-            .clickable(onClick = onClick)
+        modifier = Modifier.size(48.dp)
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
                 imageVector = icon,
                 contentDescription = contentDescription,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(20.dp)
             )
         }
     }
@@ -698,7 +697,7 @@ private fun EpubPageView(
 ) {
     val scrollState = rememberScrollState()
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .pointerInput(epubPage.pageIndex) {
@@ -716,26 +715,32 @@ private fun EpubPageView(
             .verticalScroll(scrollState)
             .padding(horizontal = 24.dp, vertical = 84.dp)
     ) {
-        Text(
-            text = epubPage.chapterTitle.uppercase(Locale.forLanguageTag("tr-TR")),
-            style = MonoMetaStyle,
-            color = MaterialTheme.colorScheme.primary,
-            letterSpacing = 0.9.sp
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Box(
+        Column(
             modifier = Modifier
-                .width(36.dp)
-                .height(1.5.dp)
-                .background(MaterialTheme.colorScheme.primary)
-        )
-        Spacer(modifier = Modifier.height(18.dp))
-        Text(
-            text = epubPage.content,
-            fontFamily = FontFamily.Serif,
-            fontSize = fontSizeSp.sp,
-            lineHeight = (fontSizeSp * 1.65f).sp,
-            color = MaterialTheme.colorScheme.onBackground
-        )
+                .widthIn(max = 620.dp)
+                .fillMaxWidth()
+                .align(Alignment.TopCenter)
+        ) {
+            Text(
+                text = epubPage.chapterTitle,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Box(
+                modifier = Modifier
+                    .width(32.dp)
+                    .height(1.5.dp)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.65f))
+            )
+            Spacer(modifier = Modifier.height(18.dp))
+            Text(
+                text = epubPage.content,
+                fontFamily = FontFamily.Serif,
+                fontSize = fontSizeSp.sp,
+                lineHeight = (fontSizeSp * 1.7f).sp,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+        }
     }
 }

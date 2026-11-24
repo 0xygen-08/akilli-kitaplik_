@@ -11,7 +11,7 @@
 - **Tüm Sürümler (Releases):** [GitHub Releases](https://github.com/0xygen-08/akilli-kitaplik_/releases)
 
 ### Bu Çatalda (Fork) Yapılan Güncellemeler
-- **Editoryal Tasarım Yenilemesi:** Sıcak kağıt / koyu okuma odası renk paleti, serif başlık tipografisi, cilt sırtlı minyatür kitap kartları, `Kaldığın Yerden Devam Et` öne çıkan okuma kartı ve dokunsal mikro-etkileşimler.
+- **Sakin ve Göz Yormayan Tasarım (`ui-ux-pro-max`):** *Book & Reading Tracker* sıcak kâğıt / gece okuma odası renk paleti, *Swiss Modernism 2.0* 4/8dp boşluk düzeni, ≥48dp Android dokunma hedefleri ve sade, kolay kullanımlı kitaplık & okuyucu arayüzü.
 - **Tam Ekran Alt Sistem Çubuğu Gizleme:** Uygulama genelinde Android alt gezinme çubuğu (geri / ana ekran / son uygulamalar) kenardan kaydırmayla geçici açılacak şekilde gizlendi; okuyucu modunda kontroller kapatıldığında durum çubuğu da gizlenerek tam ekran okuma sağlandı.
 
 ---
